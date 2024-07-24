@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: britamglapi-prod-deployment
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: britamglapi-prod
+  minReadySeconds: 2
+  strategy:
+    type: Recreate
+    # rollingUpdate:
+    #   maxUnavailable: 1
+    #   maxSurge: 0
+  template:
+    metadata:
+      labels:
+        app: britamglapi-prod
+    spec:
+      nodeSelector:
+        environment: production
+      containers:
+        - name: glapi
+          image: phillimongetich/glapi:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          resources:
+            requests:
+              cpu: "0.5" # request half a core
+              memory: "256Mi" # request 512 MB
+            limits:
+              cpu: "1" # limit to 300 millicores
+              memory: "1Gi" # limit to 1 GB
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      automountServiceAccountToken: false
+
+---
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  name: britamglapi-prod-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: britamglapi-prod-deployment
+  minReplicas: 2
+  maxReplicas: 3
+  targetCPUUtilizationPercentage: 50

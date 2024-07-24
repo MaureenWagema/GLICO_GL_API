@@ -1,0 +1,67 @@
+./k8
+# # Laravel specific files
+# #/vendor
+# /node_modules
+# /public/hot
+# /public/storage
+# /storage
+# /.phpunit.result.cache
+# /.phpunit-watcher.yml
+ 
+# # Laravel logs
+# /storage/logs/*.log
+ 
+# # Composer files
+# #/vendor/
+# /.phpunit.result.cache
+# /.phpunit-watcher.yml
+# /phpunit.xml
+ 
+# # IDE and editor files
+# /.idea
+# /.vscode
+# *.sublime-project
+# *.sublime-workspace
+# *.komodoproject
+# .project
+# *.swp
+# .DS_Store
+ 
+# # Application environment file
+# .env
+ 
+# # Laravel Mix
+# /public/mix-manifest.json
+# /public/css/
+# /public/js/
+ 
+# # PHPUnit
+# /phpunit.xml
+ 
+# # Homestead
+# /.homestead.yaml
+# Homestead.json
+# Homestead.yaml
+ 
+# # Artisan command
+# /artisan
+ 
+# # Sublime Text files
+# *.sublime-project
+# *.sublime-workspace
+ 
+# # Textmate
+# *.tmproj
+# *.tmproject
+# /tmproject.plist
+ 
+# # vim files
+# *.swp
+ 
+# # macOS
+# .DS_Store
+# .AppleDouble
+# .LSOverride
+ 
+# # Laravel Debugbar
+# /debugbar

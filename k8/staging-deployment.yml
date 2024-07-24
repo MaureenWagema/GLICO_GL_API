@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: britamglapi-staging-deploy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: britamglapi-uat
+  minReadySeconds: 10
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: britamglapi-uat
+    spec:
+      nodeSelector:
+        environment: staging
+      containers:
+        - name: glapi-staging
+          image: phillimongetich/glapi-staging
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          resources:
+            requests:
+              cpu: "0.5" # request half a core
+              memory: "256Mi" # request 512 MB
+            limits:
+              cpu: "1" # limit to 1 core
+              memory: "512Mi" # limit to 1 GB
