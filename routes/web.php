@@ -1,8 +1,9 @@
 <?php
 
+use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Route;
-use Laravel\Passport\Http\Middleware\CheckClientCredentials;
 use App\Http\Middleware\CorsMiddleware;
+use Laravel\Passport\Http\Middleware\CheckClientCredentials;
 /*
 |--------------------------------------------------------------------------
 | Web Routes
@@ -17,6 +18,8 @@ use App\Http\Middleware\CorsMiddleware;
 Route::get('/', function () {
     return view('welcome');
 });
+
+Route::get('/generate-token', [Controller::class, 'generateClientCredentialsToken']);
 
 //  Route::middleware([CorsMiddleware::class, CheckClientCredentials::class])
 //       ->post('oauth/token', '\Laravel\Passport\Http\Controllers\AccessTokenController@issueToken');

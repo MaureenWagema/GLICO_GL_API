@@ -5,10 +5,11 @@ namespace App\Http\Controllers;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
-use Symfony\Component\HttpFoundation\Request;
 use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Foundation\Validation\ValidatesRequests;
 use Illuminate\Foundation\Auth\Access\AuthorizesRequests;
+use Illuminate\Support\Facades\Validator;
+use Illuminate\Http\Request;
 
 class Controller extends BaseController
 {
@@ -21,6 +22,45 @@ class Controller extends BaseController
     {
         $this->britam_db = DB::connection('britam_db'); //life
         $this->api_token_db = DB::connection('sqlsrv'); //life
+    }
+
+    public function generateClientCredentialsToken()
+    {
+        $url = env('APP_URL') . '/oauth/token';
+        $client_id = env('CLIENT_ID', '1');
+        $client_secret = env('CLIENT_SECRET', 'M6eUvovO28Cn2ZbqT3RBLZY8uP7hpHnPtgTY0ASS');
+
+        $data = [
+            'grant_type' => 'client_credentials',
+            'client_id' => $client_id,
+            'client_secret' => $client_secret,
+            'scope' => '*'
+        ];
+
+        $http = new \GuzzleHttp\Client();
+
+        try {
+            $response = $http->post($url, ['form_params' => $data]);
+            
+            if ($response->getStatusCode() == 200) {
+                $response = json_decode($response->getBody(), true);
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Token generated successfully',
+                    'data' => $response
+                ], 200);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Error generating token'
+                ], 500);
+            }
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Exception: ' . $e->getMessage()
+            ], 500);
+        }
     }
 
 
