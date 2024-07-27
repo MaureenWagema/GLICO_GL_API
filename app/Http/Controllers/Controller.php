@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Routing\Controller as BaseController;
@@ -26,21 +27,31 @@ class Controller extends BaseController
 
     public function generateClientCredentialsToken()
     {
-        $url = env('APP_URL') . '/oauth/token';
-        $client_id = env('CLIENT_ID', '1');
-        $client_secret = env('CLIENT_SECRET', 'M6eUvovO28Cn2ZbqT3RBLZY8uP7hpHnPtgTY0ASS');
+        //$url = env('APP_URL') . '/oauth/token';
+        $url = 'http://127.0.0.1:8000/oauth/token';
+
+        // $client_id = env('CLIENT_ID', '1');
+        // $client_secret = env('CLIENT_SECRET', 'M6eUvovO28Cn2ZbqT3RBLZY8uP7hpHnPtgTY0ASS');
+        $client_id = '15';
+        $client_secret = 'QritycYY3L9RMfh8dANWM7PJGPz3BxzOGOWqamNq';
 
         $data = [
             'grant_type' => 'client_credentials',
             'client_id' => $client_id,
             'client_secret' => $client_secret,
-            'scope' => '*'
+            //'scope' => '*'
         ];
 
-        $http = new \GuzzleHttp\Client();
+       $http = new \GuzzleHttp\Client();
 
         try {
             $response = $http->post($url, ['form_params' => $data]);
+            /*$response = Http::asForm()->post($url, [
+                'grant_type' => 'client_credentials',
+                'client_id' => $client_id,
+                'client_secret' => $client_secret,
+                //'scope' => '*'
+            ]);*/
             
             if ($response->getStatusCode() == 200) {
                 $response = json_decode($response->getBody(), true);
@@ -52,7 +63,7 @@ class Controller extends BaseController
             } else {
                 return response()->json([
                     'success' => false,
-                    'message' => 'Error generating token'
+                    'message' => $response
                 ], 500);
             }
         } catch (\Exception $e) {

@@ -23,7 +23,7 @@ class CorsMiddleware
         // }
         //http://localhost:3000
         //$response->headers->set('Access-Control-Allow-Origin', 'http://172.26.0.56:30003');
-        $response->headers->set('Access-Control-Allow-Origin', 'https://grouplife.britam.com');
+        $response->headers->set('Access-Control-Allow-Origin', '*');
 
         //$response->headers->set('Access-Control-Allow-Origin', 'http://localhost:3000');
         $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');

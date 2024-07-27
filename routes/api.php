@@ -43,8 +43,8 @@ Route::get('/send-gls-to-staging', [CSVController::class, 'GLToStagingAutomated'
 Route::group(
     [
         'prefix' => 'v1',
-        //'middleware' => ['client']
-        'middleware' => ['azure.ad.auth']
+        'middleware' => ['client']
+        //'middleware' => ['azure.ad.auth']
     ],
     function () {
         Route::get('/test-database-connection', [Controller::class, 'testDatabaseConnection']);
@@ -59,8 +59,8 @@ Route::group(
 Route::group(
     [
         'prefix' => 'v1-gc-portal',
-        //'middleware' => ['client']
-        'middleware' => ['azure.ad.auth']
+        'middleware' => ['client']
+        //'middleware' => ['azure.ad.auth']
     ],
     function () {
 
@@ -190,8 +190,8 @@ Route::group(
 Route::group(
     [
         'prefix' => 'v2-gc-portal',
-        //'middleware' => ['client']
-        'middleware' => ['azure.ad.auth']
+        'middleware' => ['client']
+        //'middleware' => ['azure.ad.auth']
     ],
     function () {
 
