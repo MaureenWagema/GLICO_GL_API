@@ -20,8 +20,10 @@ class ReportsController extends Controller
             $settings = $request->input('settings');
             $schemeID = $request->input('SchemeID');
             $fundYear = $request->input('fund_year');
-             $url_path = 'https://localhost:44345/api/Report/Report/';
-          //  $url_path = 'https://localhost:44345/api/Report/Report/';
+            // $apiBaseUrl = config('api_url');
+            // $urlPath = $apiBaseUrl . '/api/Report/Report/';
+           $url_path = 'https://localhost:44345/api/Report/Report/';
+
        //     $url_path = $request->input('https://localhost:44345/api/Report/Report');
             $client = new Client([
                 'verify' => false, 
