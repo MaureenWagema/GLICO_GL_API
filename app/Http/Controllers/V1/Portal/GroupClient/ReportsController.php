@@ -12,15 +12,38 @@ class ReportsController extends Controller
     {
         try {
             $results = [];
-            $url_path = $request->input('url_path');
-            $client = new Client;
-            $response = $client->get($url_path);
+            // $reference = $request->input('SchemeID');
+            // $settings = $request->input('settings');
+            // $schemeID = $request->input('SchemeID');
+            // $fundYear = $request->input('fund_year');
+            $reference = $request->input('SchemeID');
+            $settings = $request->input('settings');
+            $schemeID = $request->input('SchemeID');
+            $fundYear = $request->input('fund_year');
+             $url_path = 'https://localhost:44345/api/Report/Report/';
+          //  $url_path = 'https://localhost:44345/api/Report/Report/';
+       //     $url_path = $request->input('https://localhost:44345/api/Report/Report');
+            $client = new Client([
+                'verify' => false, 
+            ]);
+    
+            $response = $client->post($url_path, [
+                'json' => [
+                    'reference' => $reference,
+                    'settings' => $settings,
+                    'SchemeID' => $schemeID,
+                    'fund_year' => $fundYear
+                ],
+                'headers' => [
+                    'Content-Type' => 'application/json'
+                ]
+            ]);
 
             if ($response->getStatusCode() == 200) {
                 $results = $response->getBody()->getContents();
-            }
+            }   
 
-            return $results;
+            return response($results, 200)->header('Content-Type', 'application/json');
         } catch (\Throwable $th) {
             return response()->json([
                 'success' => false,

@@ -33,9 +33,7 @@ use App\Http\Controllers\V1\Portal\GroupClient\DefaultParamsController;
 */
 
 // login from the azure ad auth
-Route::post('/azure-ad-token-request', [Azure_AD_AuthController::class, 'azure_ad_token_request']);
-
-
+Route::post('/azure-ad-token-request', [Azure_AD_AuthController::class, 'azure_ad_token_request']);              
 Route::post('/getReportsLaravel', [ReportsController::class, 'getReportsLaravel']);
 Route::get('/send-gls-to-staging', [CSVController::class, 'GLToStagingAutomated']);
 

@@ -1669,7 +1669,7 @@ class SchemesController extends Controller
                         return response()->json([
                             'success' => false,
                             'message' => 'No riders found'
-                        ], 404);
+                        ], 200);
                     }
                 }
 
@@ -1691,9 +1691,9 @@ class SchemesController extends Controller
                 } else {
 
                     return response()->json([
-                        'success' => false,
+                        'success' => true,
                         'message' => 'No riders found'
-                    ], 404);
+                    ], 204);
 
                 }
 
@@ -1718,7 +1718,7 @@ class SchemesController extends Controller
 
         if ($validator->fails()) {
             return response()->json([
-                'success' => false,
+                'success' => true,
                 'message' => 'Invalid request data',
                 'errors' => $validator->errors()
             ], 400);

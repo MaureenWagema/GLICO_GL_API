@@ -25,7 +25,6 @@ class EmailController2 extends Controller
                 'errors' => $validator->errors()
             ], 400);
         }
-
         try {
             // $scheme_id = $request->scheme_id;
             // $gc_id = $request->gc_id;
@@ -63,13 +62,13 @@ class EmailController2 extends Controller
                 $broker_id = $policy->interm_ID;
                 // check contactpersoninfo table if the email exists under the client
                 $contact_person = $this->britam_db->table('contactpersoninfo')
-                    ->where('contact_email', $contact_person_email)
+                    ->where('ContactEmail', $contact_person_email)
                     ->where(function ($query) use ($gc_id, $broker_id) {
                         $query->where('Client', $gc_id)
                             ->orWhere('Intermediary', $broker_id);
                     })
                     ->get();
-
+                 //   print_r ($contact_person);
                 // Check if $contact_person has any records, if so, break the loop
                 if ($contact_person->isNotEmpty()) {
                     break;
@@ -88,8 +87,8 @@ class EmailController2 extends Controller
             // get email from glifeclientinfo
             $data = $this->britam_db->table('PortalUserLoginInfo AS p')
                 ->join('contactpersoninfo AS c', 'c.id', '=', 'p.ContactPerson')
-                ->where('c.contact_email', $contact_person_email)
-                ->select('c.contact_email', 'p.Otp', 'p.Password', 'p.ContactPerson')
+                ->where('c.ContactEmail', $contact_person_email)
+                ->select('c.ContactEmail', 'p.Otp', 'p.Password', 'p.ContactPerson')
                 ->first();
 
             //print_r($data);
@@ -114,7 +113,7 @@ class EmailController2 extends Controller
 
             } else {
                 // send email
-                $email = $data->contact_email;
+                $email = $data->ContactEmail;
 
                 //validate email
                 if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -139,7 +138,7 @@ class EmailController2 extends Controller
                 $contactpersoninfo_details = $this->britam_db->table('PortalUserLoginInfo')
                     ->join('contactpersoninfo', 'contactpersoninfo.id', '=', 'PortalUserLoginInfo.ContactPerson')
                     ->where('PortalUserLoginInfo.ContactPerson', $contact_person_id)
-                    ->select('contactpersoninfo.contact_email', 'PortalUserLoginInfo.Otp')
+                    ->select('contactpersoninfo.ContactEmail', 'PortalUserLoginInfo.Otp')
                     ->first();
 
                 $to = $email;
@@ -148,8 +147,8 @@ class EmailController2 extends Controller
 
                 $token = $request->bearerToken();
 
-                //$results = $this->sendEmail($to, $subject, $message, $contactpersoninfo_details);
-                $result = self::britam_email_sending($subject, $message, $to, $token);
+                $result = $this->sendEmail($to, $subject, $message, $contactpersoninfo_details);
+               // $result = self::britam_email_sending($subject, $message, $to, $token);
 
                 if ($result) {
                     return response()->json([
@@ -174,6 +173,7 @@ class EmailController2 extends Controller
                 'error' => $th->getMessage()
             ], 500);
         }
+ 
     }
 
     public function verifyOTP(Request $request)
@@ -197,7 +197,7 @@ class EmailController2 extends Controller
 
             $verify_otp = $this->britam_db->table('PortalUserLoginInfo')
                 ->join('contactpersoninfo', 'contactpersoninfo.id', '=', 'PortalUserLoginInfo.ContactPerson')
-                ->where('contactpersoninfo.contact_email', $email)
+                ->where('contactpersoninfo.ContactEmail', $email)
                 ->select('PortalUserLoginInfo.Otp')
                 ->first();
 

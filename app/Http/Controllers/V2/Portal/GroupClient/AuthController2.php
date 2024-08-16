@@ -67,7 +67,7 @@ class AuthController2 extends Controller
 
                 $client_results = $this->britam_db->table('PortalUserLoginInfo AS p')
                     ->join('contactpersoninfo AS c', 'c.id', '=', 'p.ContactPerson')
-                    ->where('c.contact_email', $email)
+                    ->where('c.ContactEmail', $email)
                     ->where('p.IsClientContactPerson', 1)
                     ->select('p.*', 'c.Client', 'c.Intermediary')
                     ->first();
@@ -75,7 +75,7 @@ class AuthController2 extends Controller
 
                 $client_results = $this->britam_db->table('PortalUserLoginInfo AS p')
                     ->join('contactpersoninfo AS c', 'c.id', '=', 'p.ContactPerson')
-                    ->where('c.contact_email', $email)
+                    ->where('c.ContactEmail', $email)
                     ->where('p.IsBroker', 1)
                     ->select('p.*', 'c.Client', 'c.Intermediary')
                     ->first();
@@ -184,7 +184,7 @@ class AuthController2 extends Controller
 
             //$gc_user = GlifeClientInfo::where('email', $email)->first();
 
-            $cp_user = ContactPerson::where('contact_email', $email)->first();
+            $cp_user = ContactPerson::where('ContactEmail', $email)->first();
 
             $cp_user->setConnection('sqlsrv');
             $tokens = $cp_user->createToken('corporate-api-token', expiresAt: now()->addDays(1));
@@ -248,7 +248,7 @@ class AuthController2 extends Controller
 
             $user_results = $this->britam_db->table('PortalUserLoginInfo AS p')
                 ->join('contactpersoninfo AS c', 'c.id', '=', 'p.ContactPerson')
-                ->where('c.contact_email', $email)
+                ->where('c.ContactEmail', $email)
                 ->first();
 
             //print_r($results);
@@ -370,7 +370,7 @@ class AuthController2 extends Controller
 
             $results = $this->britam_db->table('PortalUserLoginInfo AS p')
                 ->join('contactpersoninfo AS c', 'c.id', '=', 'p.ContactPerson')
-                ->where('c.contact_email', $email)
+                ->where('c.ContactEmail', $email)
                 ->first();
 
             if ($results == null) {
@@ -411,7 +411,7 @@ class AuthController2 extends Controller
             $contactpersoninfo_details = $this->britam_db->table('PortalUserLoginInfo')
                 ->join('contactpersoninfo', 'contactpersoninfo.id', '=', 'PortalUserLoginInfo.ContactPerson')
                 ->where('PortalUserLoginInfo.ContactPerson', $cp_id)
-                ->select('contactpersoninfo.contact_email', 'PortalUserLoginInfo.Otp')
+                ->select('contactpersoninfo.ContactEmail', 'PortalUserLoginInfo.Otp')
                 ->first();
 
             $to = $email;
@@ -419,8 +419,8 @@ class AuthController2 extends Controller
             $message = "Your OTP is: " . $otp;
             $token = $request->bearerToken();
 
-            //$results = $this->sendEmail($to, $subject, $message, $contactpersoninfo_details);
-            $result = self::britam_email_sending($subject, $message, $to, $token);
+            $result = $this->sendEmail($to, $subject, $message, $contactpersoninfo_details);
+           // $result = self::britam_email_sending($subject, $message, $to, $token);
 
             if ($result) {
                 return response()->json([
@@ -589,7 +589,7 @@ class AuthController2 extends Controller
 
             $client_results = $this->britam_db->table('PortalUserLoginInfo AS p')
                 ->join('contactpersoninfo AS c', 'c.id', '=', 'p.ContactPerson')
-                ->where('c.contact_email', $user->contact_email)
+                ->where('c.ContactEmail', $user->ContactEmail)
                 ->select('p.*', 'c.Client', 'c.Intermediary')
                 ->first();
 

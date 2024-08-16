@@ -111,6 +111,14 @@ class Controller extends BaseController
                 $mail->to($to)->subject($subject);
             });
 
+            if (Mail::failures()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to send email to some or all recipients.',
+                    'failedRecipients' => Mail::failures()
+                ], 500);
+            }
+    
             return response()->json([
                 'success' => true,
                 'message' => 'Email sent successfully.',

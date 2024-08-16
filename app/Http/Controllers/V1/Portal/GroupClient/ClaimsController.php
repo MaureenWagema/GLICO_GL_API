@@ -56,10 +56,10 @@ class ClaimsController extends Controller
 
             $results = $this->britam_db->table('glifeclaimsnotification as p')
                 ->select('p.*', 's.description as claim_status', 'g.member_no as Emp_code')
-                ->join('ClaimHistoryInfo as h', 'p.id', '=', 'h.GrpClaimno')
+                ->join('ClaimHistoryInfo as h', 'p.id', '=', 'h.GlifeClaim_no')
                 ->join('ClaimStatusInfo as s', 'h.statuscode', '=', 's.id')
                 ->join('glmembersinfo as g', 'g.MemberId', '=', 'p.MemberIdKey')
-                ->where('p.SchemeName', $scheme_id)
+                ->where('p.Scheme', $scheme_id)
                 ->where('h.Active', 1)
                 ->get();
 
@@ -77,7 +77,7 @@ class ClaimsController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'No claims found'
-                ], 404);
+                ], 204);
             }
 
 
