@@ -20,8 +20,15 @@ class ReportsController extends Controller
             $settings = $request->input('settings');
             $schemeID = $request->input('SchemeID');
             $fundYear = $request->input('fund_year');
+<<<<<<< HEAD
             $url_path = "http://192.168.1.248:85/api/Report/Report";
           //  $url_path = 'https://localhost:44345/api/Report/Report/';
+=======
+            // $apiBaseUrl = config('api_url');
+            // $urlPath = $apiBaseUrl . '/api/Report/Report/';
+           $url_path = 'https://localhost:44345/api/Report/Report/';
+
+>>>>>>> 4041169a28f3621627ef227848b4ad7dc8397fd8
        //     $url_path = $request->input('https://localhost:44345/api/Report/Report');
        $client = new \GuzzleHttp\Client;
 
