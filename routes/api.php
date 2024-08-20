@@ -74,6 +74,9 @@ Route::group(
         Route::get('/counties', [DefaultParamsController::class, 'getCountyInfo']);
         Route::get('/claim-types', [DefaultParamsController::class, 'getClaimTypes']);
         Route::get('/product-classes', [DefaultParamsController::class, 'getProductClasses']);
+        Route::get('/product-rider-classes', [DefaultParamsController::class, 'getPlanRiderConfig']);
+        //
+        //Route::get('/product-classes', [DefaultParamsController::class, 'getPlanRiderConfig']);
         Route::get('/endorsement-types', [DefaultParamsController::class, 'getEndorsementTypes']);
         Route::get('/claim-causes', [DefaultParamsController::class, 'getClaimCauses']);
         Route::get('/get-payment-methods', [DefaultParamsController::class, 'getPaymemtModesinfo']);

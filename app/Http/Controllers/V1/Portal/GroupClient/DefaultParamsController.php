@@ -228,10 +228,40 @@ class DefaultParamsController extends Controller
         }
     }
 
+    //TODO create the - glife_plan_rider_config
+    public function getPlanRiderConfig()
+    {
+        try {
+            $results = $this->britam_db->table("glife_plan_rider_config")->
+            select("*")->get();
+
+            if ($results != null) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Product Riders fetched successfully',
+                    'data' => $results
+                ], 200);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No product Riders found',
+                ], 404);
+            }
+
+        } catch (\Throwable $th) {
+            //throw $th;
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching product classes' . $th->getMessage()
+            ], 500);
+        }
+    }
+
     public function getProductClasses()
     {
         try {
-            $results = $this->britam_db->table("glifeclass")->select("class_code", "short_desc", "Description")->where("IsActive", 1)->get();
+            $results = $this->britam_db->table("glifeclass")->
+            select("class_code", "short_desc", "Description","IsGroupLifeCover","IsCreditLifeCover","pen")->where("IsActive", 1)->get();
 
             if ($results != null) {
                 return response()->json([
