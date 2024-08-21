@@ -14,7 +14,6 @@ class ReportsController extends Controller
 
             $url_path = "http://192.168.1.248:85/api/Report/Report";
             $criteria = $request->input('criteria');
-            //$criteria = json_encode($request->input('criteria'));
             $client = new \GuzzleHttp\Client;
 
             $response = $client->post($url_path, [
@@ -27,9 +26,7 @@ class ReportsController extends Controller
             if ($response->getStatusCode() == 200) {
                 $results = $response->getBody()->getContents();
             }
-            //$base64Rpt = $response->getBody()->getContents();
             $base64Rpt = response($results, 200)->header('Content-Type', 'application/json');
-            //$stringWithoutQuotes = str_replace(['"', "'"], '', $base64Rpt);
 
             return $base64Rpt;
         } catch (\Throwable $th) {

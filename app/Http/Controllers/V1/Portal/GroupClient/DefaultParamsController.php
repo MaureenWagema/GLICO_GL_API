@@ -232,8 +232,10 @@ class DefaultParamsController extends Controller
     public function getPlanRiderConfig()
     {
         try {
-            $results = $this->britam_db->table("glife_plan_rider_config")->
-            select("*")->get();
+            $results = $this->britam_db->table("glife_plan_rider_config as t1")
+            ->join('gliferider_info as t2', 't1.rider_code', '=', 't2.rider_code')
+            ->select("t1.*", "t2.description as rider_name")
+            ->get();
 
             if ($results != null) {
                 return response()->json([
