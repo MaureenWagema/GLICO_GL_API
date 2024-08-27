@@ -306,7 +306,7 @@ class ClaimsController extends Controller
             'dependant.*.id_number' => 'string',
             'files' => 'array',
             'files.*' => 'file',
-            'paymentOptions' => 'required',
+            'paymentOptions' => 'nullable',
 
         ]);
 
@@ -393,7 +393,14 @@ class ClaimsController extends Controller
                     'BirthCertNumber' => $request->birth_cert_number ?? null,
                     'BirthNotificationNumber' => $request->birth_notifiacation_number ?? null,
                     'created_by' => 'API',
-                    'created_on' => date('Y-m-d H:i:s')
+                    'created_on' => date('Y-m-d H:i:s'),
+                    'Rank' => $request->Rank ?? null,
+                    'Station' => $request->Station ?? null,
+                    'Age' => $request->Age ?? null,
+                    'Gender' => $request->Gender ?? null,
+                    'LastWorkingDate' => $request->LastWorkingDate ?? null,
+                    'PlaceOfDeath' => $request->PlaceOfDeath ?? null,
+                    'CauseOfDeath' => $request->CauseOfDeath ?? null
                 ]);
 
                 $claim_payment_result_id = null;
@@ -488,14 +495,14 @@ class ClaimsController extends Controller
 
                         $filename = 'file_' . $code . '_' . time() . '.' . $fileData->getClientOriginalExtension() ?? 'pdf';
 
-                        //$storedFilePath = $fileData->storeAs('claim_documents', $filename, 'public_documents');
-                        // $storedFilePath = Storage::disk('public_documents')->putFileAs('claim_documents', $fileData, $filename);
-                        // $realFilePath = Storage::disk('public_documents')->path($storedFilePath);
+                        $storedFilePath = $fileData->storeAs('claim_documents', $filename, 'public_documents');
+                        $storedFilePath = Storage::disk('public_documents')->putFileAs('claim_documents', $fileData, $filename);
+                        $file_path = Storage::disk('public_documents')->path($storedFilePath);
 
-                        Storage::disk('ftp')->putFileAs($fileData, $filename);
-
-                        $fullFileUrl = Storage::disk('ftp')->url($filename);
-                        $file_path = Storage::disk('ftp')->path($filename);
+                        //ftp settings
+                        //Storage::disk('ftp')->putFileAs($fileData, $filename);
+                        //$fullFileUrl = Storage::disk('ftp')->url($filename);
+                        //$file_path = Storage::disk('ftp')->path($filename);
 
                         //SELECT p.description FROM claim_requirement p WHERE p.reg_code = '00002';
                         $code_description = $this->britam_db->table('claim_requirement')->select('description')->where('reg_code', $code)->first()->description;

@@ -263,7 +263,9 @@ class DefaultParamsController extends Controller
     {
         try {
             $results = $this->britam_db->table("glifeclass")->
-            select("class_code", "short_desc", "Description","IsGroupLifeCover","IsCreditLifeCover","pen")->where("IsActive", 1)->get();
+            select("class_code", "short_desc", "Description","IsGroupLifeCover","IsCreditLifeCover",
+            "pen","IsTravelInsurance","IsWelfare","IsActive","PortalDescription","IsForPartnerShip",
+            "ShowInPortal")->where("IsActive", 1)->get();
 
             if ($results != null) {
                 return response()->json([
@@ -275,6 +277,35 @@ class DefaultParamsController extends Controller
                 return response()->json([
                     'success' => false,
                     'message' => 'No product classes found',
+                ], 404);
+            }
+
+        } catch (\Throwable $th) {
+            //throw $th;
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching product classes' . $th->getMessage()
+            ], 500);
+        }
+    }
+
+    //Get Packages for Partnerships
+    public function getProductPackages()
+    {
+        try {
+            $results = $this->britam_db->table("GroupClassPackages")->
+            select("*")->where("ShowInPortal", 1)->get();
+
+            if ($results != null) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Packages fetched successfully',
+                    'data' => $results
+                ], 200);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No Packages found',
                 ], 404);
             }
 

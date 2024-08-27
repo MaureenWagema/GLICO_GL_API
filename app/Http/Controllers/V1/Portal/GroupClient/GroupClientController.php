@@ -508,7 +508,7 @@ class GroupClientController extends Controller
                                     WHEN p.SchemeDescription IS NOT NULL THEN CONCAT(p.policy_no, ' - ', p.SchemeDescription)
                                     WHEN p.CompanyName IS NOT NULL THEN CONCAT(p.policy_no, ' - ', p.CompanyName)
                                     ELSE p.policy_no
-                                END AS PolicyCompany"), 'gc.Description AS ProductDescription', 'gc.IsGroupLifeCover', 'gc.IsCreditLifeCover', 'gc.pen' )// ,'gc.IsLastExpense')
+                                END AS PolicyCompany"), 'gc.Description AS ProductDescription', 'gc.IsGroupLifeCover', 'gc.IsCreditLifeCover', 'gc.pen', 'gc.IsPopFund' )// ,'gc.IsLastExpense')
                 ->where('c.PortalUser', $user_id)
                 ->where(function ($query) {
                     $query->where('p.StatusCode', '001')

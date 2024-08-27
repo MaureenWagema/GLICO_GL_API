@@ -62,7 +62,7 @@ Route::group(
     ],
     function () {
 
-        //defaults
+        //defaults - 
         Route::get('/occupation-classes', [DefaultParamsController::class, 'getOccupationClasses']);
         Route::get('/nature-of-business', [DefaultParamsController::class, 'getNatureOfBusiness']);
         Route::get('/access-types', [DefaultParamsController::class, 'getAccessType']);
@@ -75,6 +75,7 @@ Route::group(
         Route::get('/claim-types', [DefaultParamsController::class, 'getClaimTypes']);
         Route::get('/product-classes', [DefaultParamsController::class, 'getProductClasses']);
         Route::get('/product-rider-classes', [DefaultParamsController::class, 'getPlanRiderConfig']);
+        Route::get('/product-packages-classes', [DefaultParamsController::class, 'getProductPackages']);
         //
         //Route::get('/product-classes', [DefaultParamsController::class, 'getPlanRiderConfig']);
         Route::get('/endorsement-types', [DefaultParamsController::class, 'getEndorsementTypes']);
