@@ -123,7 +123,7 @@ Route::group(
         Route::get('/broker-contact-persons', [BrokersController::class, 'getBrokerContactPersons']);
 
 
-        //claims
+        //claims 
         Route::get('/search-claimant', [ClaimsController::class, 'searchClaimantByName']);
         Route::get('/all-claims-on-scheme', [ClaimsController::class, 'getAllClaimsUnderScheme']);
         Route::get('/get-required-docs', [ClaimsController::class, 'getRequiredDocuments']);
@@ -132,6 +132,7 @@ Route::group(
         Route::get('/get-claim-requests', [ClaimsController::class, 'getClaimRequests']);
         Route::get('/get-scheme-benefit', [ClaimsController::class, 'getSchemeBenefit']);
         Route::get('/claim-status', [ClaimsController::class, 'getClaimStatus']);
+        Route::post('/approve-claim', [ClaimsController::class, 'approveClaimRequest']);
 
         //schemes
         Route::get('/getClientSchemes', [SchemesController::class, 'getClientSchemes']);

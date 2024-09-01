@@ -72,15 +72,12 @@ class ClaimsController extends Controller
                     'data' => $results,
 
                 ], 200);
-
             } else {
                 return response()->json([
                     'success' => false,
                     'message' => 'No claims found'
                 ], 204);
             }
-
-
         } catch (\Throwable $th) {
             //throw $th;
             return response()->json([
@@ -207,7 +204,6 @@ class ClaimsController extends Controller
                     'message' => 'No required documents found'
                 ], 404);
             }
-
         } catch (\Throwable $th) {
             //throw $th;
             return response()->json([
@@ -254,7 +250,6 @@ class ClaimsController extends Controller
                     'message' => 'No scheme benefits found'
                 ], 404);
             }
-
         } catch (\Throwable $th) {
             //throw $th;
             return response()->json([
@@ -264,12 +259,55 @@ class ClaimsController extends Controller
         }
     }
 
+    public function approveClaimRequest(Request $request)
+    {
+        //pass the record_id & the code ... baas
+        try{
+            $Id = (int) $request->id;
+            $ClaimStatus = $request->ClaimStatus;
+
+            $OICRecomendation = $request->OICRecomendation ?? null;
+            $OICComments = $request->OICComments ?? null;
+
+            $SecretariatRecomendation = $request->SecretariatRecomendation ?? null;
+            $SecretariatComments = $request->SecretariatComments ?? null;
+
+            $updateData = array(
+                'ClaimStatus' => $ClaimStatus,
+                'OICRecomendation' => $OICRecomendation,
+                'OICComments' => $OICComments,
+                'SecretariatRecomendation' => $SecretariatRecomendation,
+                'SecretariatComments' => $SecretariatComments
+            );
+
+
+
+            $this->britam_db->table('ClaimRequest')
+            ->where('Id', $Id)
+            ->update($updateData);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Claim Approval submitted Successfully'
+            ], 200);
+
+        } catch (\Throwable $th) {
+
+            $this->britam_db->rollBack();
+            //throw $th;
+            return response()->json([
+                'success' => false,
+                'message' => 'Error submitting claim request' . $th->getMessage()
+            ], 500);
+        }
+    }
+
     public function submitClaimRequest(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'scheme_id' => 'required',
             'member_id' => 'required',
-            'event_date' => 'required|date', // 'date_format:Y-m-d H:i:s
+            'event_date' => 'nullable', // 'date_format:Y-m-d H:i:s
             'claim_cause_id' => 'nullable',
             'ClaimReason' => 'nullable',
             'scheme_benefit_id' => 'required',
@@ -328,28 +366,28 @@ class ClaimsController extends Controller
             $event_date = $request->event_date;
             $pay_to_beneficiary = $request->pay_to_beneficiary;
             $pay_to_scheme = $request->pay_to_scheme;
-            $pay_to_ufaa = $request->pay_to_ufaa;//
+            $pay_to_ufaa = $request->pay_to_ufaa; //
             $paymentOptions = $request->paymentOptions;
 
             //one of them must be true for the others to remain false
-            if ($paymentOptions == 1) {///pay principle member
-                $pay_to_ufaa = false;
-                $pay_to_scheme = false;
-                $pay_to_beneficiary = false;
-            } else if ($paymentOptions == 2) {//pay beneficiary
-                $pay_to_beneficiary = true;
-                $pay_to_ufaa = false;
-                $pay_to_scheme = false;
-            } else if ($paymentOptions == 3) {//pay scheme
-                $pay_to_scheme = true;
-                $pay_to_beneficiary = false;
-                $pay_to_ufaa = false;
-            } else {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Please select the payment destination'
-                ], 400);
-            }
+            // if ($paymentOptions == 1) { ///pay principle member
+            //     $pay_to_ufaa = false;
+            //     $pay_to_scheme = false;
+            //     $pay_to_beneficiary = false;
+            // } else if ($paymentOptions == 2) { //pay beneficiary
+            //     $pay_to_beneficiary = true;
+            //     $pay_to_ufaa = false;
+            //     $pay_to_scheme = false;
+            // } else if ($paymentOptions == 3) { //pay scheme
+            //     $pay_to_scheme = true;
+            //     $pay_to_beneficiary = false;
+            //     $pay_to_ufaa = false;
+            // } else {
+            //     return response()->json([
+            //         'success' => false,
+            //         'message' => 'Please select the payment destination'
+            //     ], 400);
+            // }
 
 
             $member = $this->britam_db->table('glmembersinfo', 'g')
@@ -372,6 +410,41 @@ class ClaimsController extends Controller
                 //insert claim request
                 $notification_date = now();
                 $claim_request_number = $this->generateRequestNumber(false, true, $scheme_id);
+
+                //if its POPFUND and its Loan... send to OIC by default...
+                //1. Get Class from 
+                $glclass_obj = $this->britam_db->table('polschemeinfo', 'g')
+                    ->where('g.schemeID', $scheme_id)
+                    ->select('g.class_code')
+                    ->first();
+                //2. determine if its pop fund
+                $IsPopFund_obj = $this->britam_db->table('glifeclass', 'g')
+                    ->where('g.class_code', $glclass_obj->class_code)
+                    ->select('g.IsPopFund')
+                    ->first();
+                //3. fetch claim_type from scheme benefit
+                $SchemeBenefit_obj = $this->britam_db->table('SchemeBenefitConfig', 'g')
+                    ->where('g.id', $scheme_benefit_id)
+                    ->select('g.ClaimType')
+                    ->first();
+
+                //4. find out if claim type is loan...
+                $ClaimType_obj = $this->britam_db->table('claims_types', 'g')
+                    ->where('g.claim_type', $SchemeBenefit_obj->ClaimType)
+                    ->select('g.isLoan')
+                    ->first();
+                $pay_to_scheme = true;
+                $pay_to_beneficiary = false;
+                $pay_to_ufaa = false;
+                $ClaimStatus = "013";
+                if ($IsPopFund_obj->IsPopFund == "1" || $IsPopFund_obj->IsPopFund == true) {
+                    $ClaimStatus = "014";
+                    if ($ClaimType_obj->isLoan) {
+                        $pay_to_scheme = false;
+                    }
+                }
+
+
 
                 //DeathCertNo, DeathEntryNo, BurialPermitNumber, IDNumber, BirthCertNumber, BirthNotificationNumber
                 $claim_result_id = $this->britam_db->table('ClaimRequest')->insertGetId([
@@ -397,10 +470,56 @@ class ClaimsController extends Controller
                     'Rank' => $request->Rank ?? null,
                     'Station' => $request->Station ?? null,
                     'Age' => $request->Age ?? null,
+                    'YearOfEmployment' => $request->YearOfEmployment ?? null,
                     'Gender' => $request->Gender ?? null,
                     'LastWorkingDate' => $request->LastWorkingDate ?? null,
                     'PlaceOfDeath' => $request->PlaceOfDeath ?? null,
-                    'CauseOfDeath' => $request->CauseOfDeath ?? null
+                    'CauseOfDeath' => $request->CauseOfDeath ?? null,
+                    'ContributionYears' => $request->ContributionYears ?? null,
+                    'AnyOutstandingLoan' => $request->AnyOutstandingLoan ?? null,
+                    'AnyOtherInstitutionLoan' => $request->AnyOtherInstitutionLoan ?? null,
+                    'LoanAmount' => $request->LoanAmount ?? null,
+                    'LoanAmountInWords' => $request->LoanAmountInWords ?? null,
+                    'LoanPurpose' => $request->LoanPurpose ?? null,
+                    'RepaymentPeriod' => $request->RepaymentPeriod ?? null,
+                    'CurrentNetPay' => $request->CurrentNetPay ?? null,
+                    'YearsToRetirement' => $request->YearsToRetirement ?? null,
+
+                    'PayMethod' => $request->PayMethod ?? null,
+                    'Bank' => $request->Bank ?? null,
+                    'BankBranch' => $request->BankBranch ?? null,
+                    'BankAccount' => $request->BankAccount ?? null,
+                    'BankAccountName' => $request->BankAccountName ?? null,
+                    'MoMoTelco' => $request->MoMoTelco ?? null,
+                    'MoMoNumber' => $request->MoMoNumber ?? null,
+
+                    'Alcohol' => $request->Alcohol ?? null,
+                    'NamePhoneOfWitness' => $request->NamePhoneOfWitness ?? null,
+                    'ExactInjury' => $request->ExactInjury ?? null,
+                    'YouHospitalized' => $request->YouHospitalized ?? null,
+                    'Hospital' => $request->Hospital ?? null,
+                    'DoctorName' => $request->DoctorName ?? null,
+                    'AreYouDisabled' => $request->AreYouDisabled ?? null,
+                    'DisabilityDateFrom' => $request->DisabilityDateFrom ?? null,
+                    'DisabilityDateTo' => $request->DisabilityDateTo ?? null,
+                    'DisPrevWork' => $request->DisPrevWork ?? null,
+                    'HasAffectedSex' => $request->HasAffectedSex ?? null,
+                    'SexCondition' => $request->SexCondition ?? null,
+                    'ConsultSexDoctor' => $request->ConsultSexDoctor ?? null,
+                    'SexDoctorName' => $request->SexDoctorName ?? null,
+                    'SexDoctorMobile' => $request->SexDoctorMobile ?? null,
+                    
+                    'DreadIllness' => $request->DreadIllness ?? null,
+                    'DateIllnessCommencement' => $request->DateIllnessCommencement ?? null,
+                    'DreadCondition' => $request->DreadCondition ?? null,
+                    'BodyPartImpaired' => $request->BodyPartImpaired ?? null,
+                    'AffectedDuties' => $request->AffectedDuties ?? null,
+                    'AbleToWork' => $request->AbleToWork ?? null,
+                    'RelationshipType' => $request->RelationshipType ?? null,
+                    'DpWitnessName' => $request->DpWitnessName ?? null,
+                    'DpWitnessMobile' => $request->DpWitnessMobile ?? null,
+
+                    'ClaimStatus' => $ClaimStatus
                 ]);
 
                 $claim_payment_result_id = null;
@@ -409,18 +528,15 @@ class ClaimsController extends Controller
                 if ($pay_to_beneficiary == true) {
                     // get the id of the claim payment record where the pay_to_beneficiary is true
                     $claim_payment_result_id = $this->britam_db->table('ClaimPayment')->where('PayBeneficiary', true)->first()->Id;
-
                 } else if ($pay_to_scheme == true) {
                     // get the id of the claim payment record where the pay_to_scheme is true
                     $claim_payment_result_id = $this->britam_db->table('ClaimPayment')->where('PayScheme', true)->first()->Id;
-
                 } else if ($pay_to_ufaa == true) {
                     // get the id of the claim payment record where the pay_to_ufaa is true
                     $claim_payment_result_id = $this->britam_db->table('ClaimPayment')->where('PayUFAA', true)->first()->Id;
-
                 }
 
-                $this->britam_db->table('ClaimRequest')->where('Id', $claim_result_id)->update(['ClaimPayment' => $claim_payment_result_id]);
+                //$this->britam_db->table('ClaimRequest')->where('Id', $claim_result_id)->update(['ClaimPayment' => $claim_payment_result_id]);
 
 
                 //process dependants
@@ -436,7 +552,6 @@ class ClaimsController extends Controller
                             'created_on' => date('Y-m-d H:i:s')
                         ]);
                     }
-
                 }
                 //process beneficiaries
                 // make sure the perc_alloc limit of 100 has not been reached for the beneficiaries
@@ -556,7 +671,6 @@ class ClaimsController extends Controller
                     ], 500);
                 }
             }
-
         } catch (\Throwable $th) {
 
             $this->britam_db->rollBack();
@@ -571,7 +685,7 @@ class ClaimsController extends Controller
     public function getClaimRequests(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'scheme_id' => 'required|numeric',
+            'scheme_id' => 'nullable',
         ]);
 
         if ($validator->fails()) {
@@ -586,57 +700,69 @@ class ClaimsController extends Controller
 
             //confirm if it is a corporate scheme
             $scheme_id = $request->scheme_id;
-
-            // $results = $this->britam_db->table('ClaimRequest', 'c')
-            //     ->join('glmembersinfo as g', 'g.MemberId', '=', 'c.Member')
-            //     ->join('claims_types as cl', 'cl.claim_type', '=', 'c.ClaimType')
-            //     ->join('polschemeinfo as p', 'p.schemeID', '=', 'c.SchemeID')
-            //     ->where('c.SchemeID', $scheme_id)
-            //     ->select('cl.Description', 'c.Status', 'g.Names', 'c.EventDate', 'c.NotificationDate', 'c.ClaimCause', 'p.schemeID', 'p.policy_no')
-            //     ->get();
-
-            //SELECT DISTINCT gcl.Description, ed.Description AS RequestStatus, g.Names, c.EventDate, c.NotificationDate, cs.Description AS ClaimCause, p.schemeID, p.policy_no, gc.claim_no,
-            // CASE WHEN csi.description IS NULL THEN 'PENDING' ELSE csi.description END AS ClaimStatus
-            // FROM ClaimRequest AS c
-            // JOIN EndorsementRequestStatus ed ON ed.Id = c."Status"
-            // JOIN glmembersinfo AS g ON g.MemberId = c.Member
-            // LEFT JOIN SchemeBenefitConfig gcl ON gcl.id = c.SchemeBenefit
-            // left JOIN claims_types AS cl ON cl.claim_type = c.ClaimType
-            // JOIN polschemeinfo AS p ON p.schemeID = c.SchemeID
-            // LEFT JOIN claimcausesinfo cs ON cs.claim_cause_code = c.ClaimCause
-            // LEFT JOIN glifeclaimsnotification gc ON gc.MemberIdKey = g.MemberId
-            // LEFT JOIN ClaimHistoryInfo ch ON gc.id = ch.GrpClaimno
-            // LEFT JOIN ClaimStatusInfo csi ON ch.statuscode = csi.id
-            // WHERE c.SchemeID = 61;
-
-            // use the above query to get the claim requests
-            $results = $this->britam_db->table('ClaimRequest as c')
-                ->select(
-                    'gcl.Description',
-                    'ed.Description as RequestStatus',
-                    'g.Names',
-                    'c.EventDate',
-                    'c.NotificationDate',
-                    'cs.Description as ClaimCause',
-                    'p.schemeID',
-                    'p.policy_no',
-                    'gc.claim_no',
-                    $this->britam_db->raw("CASE WHEN csi.description IS NULL THEN 'PENDING' ELSE csi.description END AS ClaimStatus")
-                )
-                ->join('EndorsementRequestStatus as ed', 'ed.Id', '=', 'c.Status')
-                ->join('glmembersinfo as g', 'g.MemberId', '=', 'c.Member')
-                ->leftJoin('SchemeBenefitConfig as gcl', 'gcl.id', '=', 'c.SchemeBenefit')
-                ->leftJoin('claims_types as cl', 'cl.claim_type', '=', 'c.ClaimType')
-                ->join('polschemeinfo as p', 'p.schemeID', '=', 'c.SchemeID')
-                ->leftJoin('claimcausesinfo as cs', 'cs.claim_cause_code', '=', 'c.ClaimCause')
-                ->leftJoin('glifeclaimsnotification as gc', 'gc.MemberIdKey', '=', 'g.MemberId')
-                ->leftJoin('ClaimHistoryInfo as ch', 'gc.id', '=', 'ch.GrpClaimno')
-                ->leftJoin('ClaimStatusInfo as csi', 'ch.statuscode', '=', 'csi.id')
-                ->where('c.SchemeID', $scheme_id)
-                ->distinct()
-                ->get();
+            $PopFundAccessLevelId = $request->PopFundAccessLevelId;
+            $id = $request->id;
 
 
+            if (isset($PopFundAccessLevelId)) {
+
+                //fetch the PopFundAccessLevelId
+                $ClaimStatus = "014";
+                if ($PopFundAccessLevelId == "2") {
+                    $ClaimStatus = "015";
+                }
+
+                $results = $this->britam_db->table('ClaimRequest as c')
+                    ->join('glmembersinfo as g', 'g.MemberId', '=', 'c.Member')
+                    ->leftJoin('glifestatus as t3', 't3.status_code', '=', 'c.ClaimStatus')
+                    ->leftJoin('SchemeBenefitConfig as gcl', 'gcl.id', '=', 'c.SchemeBenefit')
+                    ->leftJoin('claims_types as cl', 'cl.claim_type', '=', 'c.ClaimType')
+                    ->select(
+                        'c.*',
+                        'g.Names',
+                        'gcl.Description as Claim_Type',
+                        't3.Description as Claim_Status'
+                    )
+                    ->where('c.SchemeID', $scheme_id)
+                    ->where('c.ClaimStatus', $ClaimStatus)
+                    ->get();
+            } else {
+                if (isset($id)) {
+                    //inner join to get the staff no
+                    $results = $this->britam_db->table('ClaimRequest as c')
+                        ->select('c.*', 'c.SchemeBenefit as scheme_benefit_id','g.member_no')
+                        ->join('glmembersinfo as g', 'g.MemberId', '=', 'c.Member')
+                        ->where('c.Id', $id)
+                        ->get();
+                } else {
+                    // use the above query to get the claim requests
+                    $results = $this->britam_db->table('ClaimRequest as c')
+                        ->select(
+                            'gcl.Description',
+                            'ed.Description as RequestStatus',
+                            'g.Names',
+                            'c.EventDate',
+                            'c.NotificationDate',
+                            'cs.Description as ClaimCause',
+                            'p.schemeID',
+                            'p.policy_no',
+                            'gc.claim_no',
+                            $this->britam_db->raw("CASE WHEN csi.description IS NULL THEN 'PENDING' ELSE csi.description END AS ClaimStatus")
+                        )
+                        ->join('EndorsementRequestStatus as ed', 'ed.Id', '=', 'c.Status')
+                        ->join('glmembersinfo as g', 'g.MemberId', '=', 'c.Member')
+                        ->leftJoin('SchemeBenefitConfig as gcl', 'gcl.id', '=', 'c.SchemeBenefit')
+                        ->leftJoin('claims_types as cl', 'cl.claim_type', '=', 'c.ClaimType')
+                        ->join('polschemeinfo as p', 'p.schemeID', '=', 'c.SchemeID')
+                        ->leftJoin('claimcausesinfo as cs', 'cs.claim_cause_code', '=', 'c.ClaimCause')
+                        ->leftJoin('glifeclaimsnotification as gc', 'gc.MemberIdKey', '=', 'g.MemberId')
+                        ->leftJoin('ClaimHistoryInfo as ch', 'gc.id', '=', 'ch.GlifeClaim_no')
+                        ->leftJoin('ClaimStatusInfo as csi', 'ch.statuscode', '=', 'csi.id')
+                        ->where('c.SchemeID', $scheme_id)
+                        ->distinct()
+                        ->get();
+                }
+            }
             // $results = $this->britam_db->table('ClaimRequest as c')
             //     ->select('cl.Description', 'ed.Description as Status', 'g.Names', 'c.EventDate', 'c.NotificationDate', 'cs.Description as ClaimCause', 'p.schemeID', 'p.policy_no', 'gc.claim_no')
             //     ->join('EndorsementRequestStatus as ed', 'ed.Id', '=', 'c.Status')
@@ -664,7 +790,6 @@ class ClaimsController extends Controller
                     'message' => 'No claim requests found'
                 ], 404);
             }
-
         } catch (\Throwable $th) {
             //throw $th;
             return response()->json([
@@ -725,7 +850,6 @@ class ClaimsController extends Controller
                     'message' => 'Error uploading claim request document'
                 ], 500);
             }
-
         } catch (\Throwable $th) {
             //throw $th;
             return response()->json([
@@ -788,7 +912,6 @@ class ClaimsController extends Controller
                     'message' => 'No claim status found'
                 ], 404);
             }
-
         } catch (\Throwable $th) {
             //throw $th;
             return response()->json([
