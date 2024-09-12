@@ -262,7 +262,7 @@ class ClaimsController extends Controller
     public function approveClaimRequest(Request $request)
     {
         //pass the record_id & the code ... baas
-        try{
+        try {
             $Id = (int) $request->id;
             $ClaimStatus = $request->ClaimStatus;
 
@@ -283,14 +283,13 @@ class ClaimsController extends Controller
 
 
             $this->britam_db->table('ClaimRequest')
-            ->where('Id', $Id)
-            ->update($updateData);
+                ->where('Id', $Id)
+                ->update($updateData);
 
             return response()->json([
                 'success' => true,
                 'message' => 'Claim Approval submitted Successfully'
             ], 200);
-
         } catch (\Throwable $th) {
 
             $this->britam_db->rollBack();
@@ -431,7 +430,7 @@ class ClaimsController extends Controller
                 //4. find out if claim type is loan...
                 $ClaimType_obj = $this->britam_db->table('claims_types', 'g')
                     ->where('g.claim_type', $SchemeBenefit_obj->ClaimType)
-                    ->select('g.isLoan')
+                    ->select('g.isLoan','g.isDeath')
                     ->first();
                 $pay_to_scheme = true;
                 $pay_to_beneficiary = false;
@@ -441,6 +440,9 @@ class ClaimsController extends Controller
                     $ClaimStatus = "014";
                     if ($ClaimType_obj->isLoan) {
                         $pay_to_scheme = false;
+                    }
+                    if ($ClaimType_obj->isDeath) {
+                        $ClaimStatus = "015";
                     }
                 }
 
@@ -508,7 +510,7 @@ class ClaimsController extends Controller
                     'ConsultSexDoctor' => $request->ConsultSexDoctor ?? null,
                     'SexDoctorName' => $request->SexDoctorName ?? null,
                     'SexDoctorMobile' => $request->SexDoctorMobile ?? null,
-                    
+
                     'DreadIllness' => $request->DreadIllness ?? null,
                     'DateIllnessCommencement' => $request->DateIllnessCommencement ?? null,
                     'DreadCondition' => $request->DreadCondition ?? null,
@@ -610,10 +612,13 @@ class ClaimsController extends Controller
 
                         $filename = 'file_' . $code . '_' . time() . '.' . $fileData->getClientOriginalExtension() ?? 'pdf';
 
-                        $storedFilePath = $fileData->storeAs('claim_documents', $filename, 'public_documents');
-                        $storedFilePath = Storage::disk('public_documents')->putFileAs('claim_documents', $fileData, $filename);
-                        $file_path = Storage::disk('public_documents')->path($storedFilePath);
+                        //$storedFilePath = $fileData->storeAs('claim_documents', $filename, 'public_documents');
+                        //$storedFilePath = Storage::disk('public_documents')->putFileAs('claim_documents', $fileData, $filename);
+                        //$file_path = Storage::disk('public_documents')->path($storedFilePath);
 
+                        $storedFilePath = public_path('claim_documents');
+                        $fileData->move($storedFilePath, $filename);
+                        $file_path = $storedFilePath;
                         //ftp settings
                         //Storage::disk('ftp')->putFileAs($fileData, $filename);
                         //$fullFileUrl = Storage::disk('ftp')->url($filename);
@@ -702,6 +707,7 @@ class ClaimsController extends Controller
             $scheme_id = $request->scheme_id;
             $PopFundAccessLevelId = $request->PopFundAccessLevelId;
             $id = $request->id;
+            $docs = array();
 
 
             if (isset($PopFundAccessLevelId)) {
@@ -729,10 +735,27 @@ class ClaimsController extends Controller
             } else {
                 if (isset($id)) {
                     //inner join to get the staff no
+                    /*$this->britam_db->table('ClaimDocuments')->insert([
+                        'ClaimRequest' => $claim_result_id,
+                        'DocumentType' => $document_type->ID ?? 1,
+                        'ClaimDocumentType' => $code,
+                        'DocumentCode' => $code,
+                        'Description' => $code_description ?? null,
+                        'FileName' => $filename,
+                        'FullFilePath' => $file_path,
+                        'IsMandatory' => 1,
+                        'created_by' => 'API',
+                        'created_on' => date('Y-m-d H:i:s')
+                    ]);*/
                     $results = $this->britam_db->table('ClaimRequest as c')
-                        ->select('c.*', 'c.SchemeBenefit as scheme_benefit_id','g.member_no')
+                        ->select('c.*', 'c.SchemeBenefit as scheme_benefit_id',
+                        'c.EventDate as event_date', 'g.member_no')
                         ->join('glmembersinfo as g', 'g.MemberId', '=', 'c.Member')
                         ->where('c.Id', $id)
+                        ->get();
+                    $docs = $this->britam_db->table('ClaimDocuments as c')
+                        ->select('c.*')
+                        ->where('c.ClaimRequest', $id)
                         ->get();
                 } else {
                     // use the above query to get the claim requests
@@ -781,7 +804,8 @@ class ClaimsController extends Controller
                     'success' => true,
                     'message' => 'Claim requests fetched successfully',
                     'count' => count($results),
-                    'data' => $results
+                    'data' => $results,
+                    'docs' => $docs
 
                 ], 200);
             } else {

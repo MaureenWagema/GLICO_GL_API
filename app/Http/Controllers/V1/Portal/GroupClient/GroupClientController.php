@@ -479,6 +479,7 @@ class GroupClientController extends Controller
             ], 500);
         }
     }
+    //get 
 
     // get policies that the contact person has access to
     public function getGCContactPersonSchemes(Request $request)
@@ -497,11 +498,29 @@ class GroupClientController extends Controller
 
         try {
             $contact_person_id = $request->input('contact_person_id');
+            $is_pop_fund = $request->input('is_pop_fund');
 
             // get PortalUsageLoginInfo id from contact_person_id
             $user_id = $contact_person_id;
 
-            $schemes = $this->britam_db->table('polschemeinfo AS p')
+            if($is_pop_fund == "1"){
+                $schemes = $this->britam_db->table('polschemeinfo AS p')
+                ->join('ClientSchemesAccess AS c', 'p.schemeID', '=', 'c.Scheme')
+                ->join('glifeclass AS gc', 'p.class_code', '=', 'gc.class_code')
+                ->select('p.*', \DB::raw("CASE 
+                                    WHEN p.SchemeDescription IS NOT NULL THEN CONCAT(p.policy_no, ' - ', p.SchemeDescription)
+                                    WHEN p.CompanyName IS NOT NULL THEN CONCAT(p.policy_no, ' - ', p.CompanyName)
+                                    ELSE p.policy_no
+                                END AS PolicyCompany"), 'gc.Description AS ProductDescription', 'gc.IsGroupLifeCover', 'gc.IsCreditLifeCover', 'gc.pen', 'gc.IsPopFund' )// ,'gc.IsLastExpense')
+                ->where('p.class_code', 8)
+                ->where(function ($query) {
+                    $query->where('p.StatusCode', '001')
+                        ->orWhere('p.StatusCode', '005');
+                })
+                ->where('c.AllowAccess', 1)
+                ->get();
+            }else{
+                $schemes = $this->britam_db->table('polschemeinfo AS p')
                 ->join('ClientSchemesAccess AS c', 'p.schemeID', '=', 'c.Scheme')
                 ->join('glifeclass AS gc', 'p.class_code', '=', 'gc.class_code')
                 ->select('p.*', \DB::raw("CASE 
@@ -516,6 +535,8 @@ class GroupClientController extends Controller
                 })
                 ->where('c.AllowAccess', 1)
                 ->get();
+            }
+            
 
 
             if ($schemes->isNotEmpty()) {
