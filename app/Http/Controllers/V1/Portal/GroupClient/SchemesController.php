@@ -294,7 +294,7 @@ class SchemesController extends Controller
             $client_type = $this->britam_db->table('glifeclientinfo', 'g')
                 ->join('polschemeinfo as p', 'p.ClientNumber', '=', 'g.Id')
                 //->join('glmembersinfo as gm', 'gm.SchemeID', '=', 'p.schemeID')
-                ->where('p.SchemeID', $scheme_id)
+                ->where('p.schemeID', $scheme_id)
                 ->select('g.client_type')
                 ->first();
 
@@ -312,25 +312,46 @@ class SchemesController extends Controller
                 //         'message' => 'Scheme is not for a corporate institution.'
                 //     ], 400);
             } else {
-                /*$results = $this->britam_db->table('glmembersinfo')
+
+                //TODO - check if its popfund....
+                //1. Check if class_code is popfund
+                $StatementObj = $this->britam_db->table('polschemeinfo', 'g')
+                ->join('glifeclass as p', 'p.class_code', '=', 'g.class_code')
+                //->join('glmembersinfo as gm', 'gm.SchemeID', '=', 'p.schemeID')
+                ->where('g.schemeID', $scheme_id)
+                ->select('p.IsPopFund','p.pen')
+                ->first();
+
+                $IsPopFund = $StatementObj->IsPopFund;
+                $Ispen = $StatementObj->pen;
+
+                if($IsPopFund == "1" || $IsPopFund == 1 || $Ispen == "1" || $Ispen == 1){
+                    if($IsPopFund == "1" || $IsPopFund == 1){
+                        $results = $this->britam_db->table('glmembersinfo')
+                        ->select("*")
+                        ->where("schemeID", $scheme_id)
+                        ->where(function ($query) use ($search_name) {
+                            $query->where("member_no", '=', $search_name)
+                                ->where("IsActive", '=', "1");
+                        })
+                        ->get();
+                    } else if($Ispen == "1" || $Ispen == 1){
+                        $results = $this->britam_db->table('polschemeinfo')
+                        ->select("CompanyName as Names", "policy_no as member_no", "schemeID as SchemeID")
+                        ->where("schemeID", $scheme_id)
+                        ->get();
+                    }
+                    
+                } else {
+                    $results = $this->britam_db->table('glmembersinfo')
                     ->select("*")
                     ->where("schemeID", $scheme_id)
                     ->where(function ($query) use ($search_name) {
                         $query->where("Names", 'LIKE', '%' . $search_name . '%')
                             ->orWhere("member_no", 'LIKE', '%' . $search_name . '%');
                     })
-                    ->get(); IsActive
-                    */
-                $results = $this->britam_db->table('glmembersinfo')
-                    ->select("*")
-                    ->where("schemeID", $scheme_id)
-                    ->where(function ($query) use ($search_name) {
-                        $query->where("member_no", '=', $search_name)
-                            ->where("IsActive", '=', "1");
-                    })
-                    ->get();
-
-
+                    ->get(); 
+                }
 
                 if (sizeof($results) > 0) {
 
@@ -1846,6 +1867,7 @@ class SchemesController extends Controller
 
         try {
 
+            $currentDate = date('Y-m-d');
             $client_type = $request->input('client_type');
             $login_user_id = $request->input('contact_persons_id');
 
@@ -1880,20 +1902,28 @@ class SchemesController extends Controller
                     ->where('ca.AllowAccess', 1)
                     ->get();
             } else if ($client_type == 2) {
+                //get the intermediary Id,
+                $loginObj = $this->britam_db->table('PortalUserLoginInfo')->where('Id', $contact_persons_id)->first();
+                $brokerId = $loginObj->Broker;
+
                 $results = $this->britam_db->table('polschemeinfo as p')
-                    ->select('p.schemeID', 'p.DateFrom', 'p.End_date', 'p.PolAnniversary', \DB::raw("CASE 
+                    ->join('glifestatus as gs', 'gs.status_code', '=', 'p.StatusCode')
+                    ->join('glifeclientinfo as q', 'p.ClientNumber', '=', 'q.Id')
+                    ->select('p.schemeID', 'p.DateFrom', 'p.End_date', 'p.PolAnniversary','q.name as CompanyName', 
+                    \DB::raw("CASE 
                             WHEN p.SchemeDescription IS NOT NULL THEN CONCAT(p.SchemeDescription, ' - ', p.policy_no)
-                            WHEN p.CompanyName IS NOT NULL THEN CONCAT(p.CompanyName, ' - ', p.policy_no)
+                            WHEN q.name IS NOT NULL THEN CONCAT(q.name, ' - ', p.policy_no)
                             ELSE p.policy_no
                         END AS PolicyCompany"), 'gs.Description AS Status')
-                    ->join('glifestatus as gs', 'gs.status_code', '=', 'p.StatusCode')
-                    ->join('ClientSchemesAccess as ca', 'ca.scheme', '=', 'p.schemeID')
+                    //->join('ClientSchemesAccess as ca', 'ca.scheme', '=', 'p.schemeID')
                     ->where(function ($query) {
                         $query->where('p.StatusCode', '001')
                             ->orWhere('p.StatusCode', '005');
                     })
-                    ->where('ca.ContactPersonReferred', $contact_persons_id)
-                    ->where('ca.AllowAccess', 1)
+                    ->where('p.interm_ID', $brokerId)
+                    //->where('ca.ContactPersonReferred', $contact_persons_id)
+                    //->where('ca.AllowAccess', 1)
+                    ->whereRaw('? BETWEEN p.DateFrom AND p.End_date', [$currentDate])
                     ->get();
             }
 

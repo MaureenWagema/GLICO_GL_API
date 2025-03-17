@@ -288,6 +288,35 @@ class DefaultParamsController extends Controller
             ], 500);
         }
     }
+    //Get LoanTypes for GroupLife
+    public function getGlLoanTypes()
+    {
+        try {
+            $results = $this->britam_db->table("GlifeLoanTypesinfo")->
+            select("*")->get();
+
+            if ($results != null) {
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Loan Types fetched successfully',
+                    'data' => $results
+                ], 200);
+            } else {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No Loan Types found',
+                ], 404);
+            }
+
+        } catch (\Throwable $th) {
+            //throw $th;
+            return response()->json([
+                'success' => false,
+                'message' => 'Error fetching product classes' . $th->getMessage()
+            ], 500);
+        }
+    }
+
 
     //Get Packages for Partnerships
     public function getProductPackages()

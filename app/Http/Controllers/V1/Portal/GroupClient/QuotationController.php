@@ -198,7 +198,8 @@ class QuotationController extends Controller
                 'Status' => $status->Id,
 
                 'Avg_Age' => $Avg_Age,
-                'PackageId' => $PackageId
+                'PackageId' => $PackageId,
+                'IsDetailedQuote' => 1
             ]);
 
             //TODO - Insert into TravelMembers if travel

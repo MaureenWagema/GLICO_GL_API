@@ -51,16 +51,23 @@ class ClaimsController extends Controller
         try {
 
             $scheme_id = $request->input('scheme_id');
+            //get the scheme_no
+            $policy_no = $this->britam_db->table('polschemeinfo')
+                                ->select('policy_no')
+                                ->where('schemeID', $scheme_id)
+                                ->first()->policy_no;
 
 
 
             $results = $this->britam_db->table('glifeclaimsnotification as p')
-                ->select('p.*', 's.description as claim_status', 'g.member_no as Emp_code')
+                ->select('p.*', 's.descriptionClientPortal as claim_status', 'g.member_no as Emp_code','g.Names')
+                ->join('polschemeinfo as i', 'i.schemeID', '=', 'p.Scheme')
                 ->join('ClaimHistoryInfo as h', 'p.id', '=', 'h.GlifeClaim_no')
                 ->join('ClaimStatusInfo as s', 'h.statuscode', '=', 's.id')
                 ->join('glmembersinfo as g', 'g.MemberId', '=', 'p.MemberIdKey')
-                ->where('p.Scheme', $scheme_id)
+                ->where('i.policy_no', $policy_no)
                 ->where('h.Active', 1)
+                ->orderBy('p.notification_date', 'DESC')
                 ->get();
 
             if (sizeof($results) > 0) {
@@ -272,12 +279,19 @@ class ClaimsController extends Controller
             $SecretariatRecomendation = $request->SecretariatRecomendation ?? null;
             $SecretariatComments = $request->SecretariatComments ?? null;
 
+            $BrokerRecomendation = $request->BrokerRecomendation ?? null;
+            $BrokerComments = $request->BrokerComments ?? null;
+
+
+
             $updateData = array(
                 'ClaimStatus' => $ClaimStatus,
                 'OICRecomendation' => $OICRecomendation,
                 'OICComments' => $OICComments,
                 'SecretariatRecomendation' => $SecretariatRecomendation,
-                'SecretariatComments' => $SecretariatComments
+                'SecretariatComments' => $SecretariatComments,
+                'BrokerRecomendation' => $BrokerRecomendation,
+                'BrokerComments' => $BrokerComments
             );
 
 
@@ -311,7 +325,7 @@ class ClaimsController extends Controller
             'ClaimReason' => 'nullable',
             'scheme_benefit_id' => 'required',
             //'claim_type_id' => 'required',
-            'portal_user_id' => 'required',
+            'portal_user_id' => 'nullable',
             'death_cert_number' => 'string',
             'death_entry_number' => 'string',
             'burial_permit_number' => 'string',
@@ -430,7 +444,7 @@ class ClaimsController extends Controller
                 //4. find out if claim type is loan...
                 $ClaimType_obj = $this->britam_db->table('claims_types', 'g')
                     ->where('g.claim_type', $SchemeBenefit_obj->ClaimType)
-                    ->select('g.isLoan','g.isDeath')
+                    ->select('g.isLoan', 'g.isDeath')
                     ->first();
                 $pay_to_scheme = true;
                 $pay_to_beneficiary = false;
@@ -438,14 +452,94 @@ class ClaimsController extends Controller
                 $ClaimStatus = "013";
                 if ($IsPopFund_obj->IsPopFund == "1" || $IsPopFund_obj->IsPopFund == true) {
                     $ClaimStatus = "014";
+
+                    //get the popfund access level of the logged in user
+                    $clientId = $request->portal_user_id;
+                    if(isset($clientId)){
+                        $loginObj = $this->britam_db->table('PortalUserLoginInfo')->where('Id', $clientId)->first();
+                        $contactPersonId = $loginObj->ContactPerson;
+                        $contactObj = $this->britam_db->table('contactpersoninfo')->where('ID', $contactPersonId)->first();
+                        $PopFundAccessLevelId = $contactObj->PopFundAccessLevelId;
+                    }
+                    if(isset($PopFundAccessLevelId) && ($PopFundAccessLevelId == 2 || $PopFundAccessLevelId == "2")){
+                        $ClaimStatus = "013";
+                    }
+
+
                     if ($ClaimType_obj->isLoan) {
                         $pay_to_scheme = false;
                     }
                     if ($ClaimType_obj->isDeath) {
                         $ClaimStatus = "015";
                     }
+                } else {
+                    //if its not popfund, check if scheme has a broker thats not direct business
+                    $clientId = $request->portal_user_id;
+                    if(isset($clientId)){
+                        $loginObj = $this->britam_db->table('PortalUserLoginInfo')->where('Id', $clientId)->first();
+                    }
+                    //if it has a broker, check if submitted to a client, else send to glico
+                    if (isset($clientId) && ($loginObj->IsBroker == "1" || $loginObj->IsBroker == 1 || $loginObj->IsBroker == true)) {
+                        //its broker submiting
+                        $ClaimStatus = "013";
+                    } else {
+                        //check if its direct business
+                        $IntermediaryId = $this->britam_db->table('polschemeinfo')->where('schemeID', $scheme_id)->first()->interm_ID;
+                        if ($IntermediaryId == "4" || $IntermediaryId == 4) {
+                            $ClaimStatus = "013";
+                        } else {
+                            //put status "submitted to broker"
+                            //If acctype == 001
+                            $acctype = $this->britam_db->table('Intermediaryinfo')->where('id', $IntermediaryId)->first()->acctype;
+                            if ($acctype == "001") {
+                                $ClaimStatus = "016";
+                            } else {
+                                $ClaimStatus = "013";
+                            }
+                        }
+                    }
+                }
+                //get the claim type & default the event_date
+                if(!isset($event_date)){
+                    $event_date = date('Y-m-d H:i:s');
                 }
 
+
+                //TODO - based on the event date we get the schemeID and memberID...
+                //get name of the member
+                $member_name =  $this->britam_db->table('glmembersinfo')
+                ->where('SchemeID', $scheme_id)
+                ->where('MemberId', $member_id)
+                ->first()->Names;
+                $policy_no =  $this->britam_db->table('polschemeinfo')->where('schemeID', $scheme_id)->first()->policy_no;
+                //do a search where its between the start date and end date 
+                $new_scheme_obj = $this->britam_db->table('polschemeinfo')
+                ->where('policy_no', $policy_no)
+                ->where('DateFrom', '<=', $event_date)
+                ->where('End_date', '>=', $event_date)
+                ->first();
+
+                if(isset($new_scheme_obj)){
+                    $new_scheme_id = $new_scheme_obj->schemeID;
+                    $new_member_id = $this->britam_db->table('glmembersinfo')
+                    ->where('SchemeID', $new_scheme_id)
+                    ->where('Names', $member_name)
+                    ->first()->MemberId;
+    
+                    if(isset($new_scheme_id) && ($new_scheme_id != $scheme_id)){
+                        $scheme_id = $new_scheme_id;
+                        if(isset($new_member_id) && ($new_member_id != $member_id)){
+                            $member_id = $new_member_id;
+                        }
+                    }
+                }
+
+                
+
+                ////
+
+                $ClaimType = $this->britam_db->table('SchemeBenefitConfig')->where('id', $scheme_benefit_id)->first()->ClaimType;
+                
 
 
                 //DeathCertNo, DeathEntryNo, BurialPermitNumber, IDNumber, BirthCertNumber, BirthNotificationNumber
@@ -453,6 +547,7 @@ class ClaimsController extends Controller
                     'ContactPerson' => $request->portal_user_id,
                     'ClaimRequestNumber' => $claim_request_number,
                     'ClaimReasons' => $request->ClaimReason,
+                    'ClaimType' => $ClaimType,
                     'SchemeID' => $scheme_id,
                     'Member' => $member_id,
                     'SchemeBenefit' => $scheme_benefit_id,
@@ -487,13 +582,14 @@ class ClaimsController extends Controller
                     'CurrentNetPay' => $request->CurrentNetPay ?? null,
                     'YearsToRetirement' => $request->YearsToRetirement ?? null,
 
-                    'PayMethod' => $request->PayMethod ?? null,
-                    'Bank' => $request->Bank ?? null,
-                    'BankBranch' => $request->BankBranch ?? null,
-                    'BankAccount' => $request->BankAccount ?? null,
-                    'BankAccountName' => $request->BankAccountName ?? null,
-                    'MoMoTelco' => $request->MoMoTelco ?? null,
-                    'MoMoNumber' => $request->MoMoNumber ?? null,
+                    'LoanType' => $request->LoanType ?? null,
+                    'ClaimDefaultPay_method' => $request->ClaimDefaultPay_method ?? null,
+                    'ClaimDefaultEFTBank_code' => $request->ClaimDefaultEFTBank_code ?? null,
+                    'ClaimDefaultEFTBankBranchCode' => $request->ClaimDefaultEFTBankBranchCode ?? null,
+                    'ClaimDefaultEFTBank_account' => $request->ClaimDefaultEFTBank_account ?? null,
+                    'ClaimDefaultEftBankaccountName' => $request->ClaimDefaultEftBankaccountName ?? null,
+                    'ClaimDefaultTelcoCompany' => $request->ClaimDefaultTelcoCompany ?? null,
+                    'ClaimDefaultMobileWallet' => $request->ClaimDefaultMobileWallet ?? null,
 
                     'Alcohol' => $request->Alcohol ?? null,
                     'NamePhoneOfWitness' => $request->NamePhoneOfWitness ?? null,
@@ -521,7 +617,11 @@ class ClaimsController extends Controller
                     'DpWitnessName' => $request->DpWitnessName ?? null,
                     'DpWitnessMobile' => $request->DpWitnessMobile ?? null,
 
-                    'ClaimStatus' => $ClaimStatus
+                    'ClaimStatus' => $ClaimStatus,
+
+                    'paymentOptions' => $paymentOptions,
+                    'IsCancelled' => 0,
+                    'HasBeenPicked' => 0
                 ]);
 
                 $claim_payment_result_id = null;
@@ -615,8 +715,10 @@ class ClaimsController extends Controller
                         //$storedFilePath = $fileData->storeAs('claim_documents', $filename, 'public_documents');
                         //$storedFilePath = Storage::disk('public_documents')->putFileAs('claim_documents', $fileData, $filename);
                         //$file_path = Storage::disk('public_documents')->path($storedFilePath);
+                        //DbHelper::getColumnValue('FileCategoriesStore', 'ID', 1, 'FileStoreLocationPath');
+                        //$storedFilePath = public_path('claim_documents');
 
-                        $storedFilePath = public_path('claim_documents');
+                        $storedFilePath = $this->britam_db->table('FileCategoriesStore')->where('ID', 2)->first()->FileStoreLocationPath;
                         $fileData->move($storedFilePath, $filename);
                         $file_path = $storedFilePath;
                         //ftp settings
@@ -629,6 +731,7 @@ class ClaimsController extends Controller
                         $document_type = $this->britam_db->table('GroupLifeFileCategories')->select('ID')->where('IsClaimDocument', true)->first();
 
                         $this->britam_db->table('ClaimDocuments')->insert([
+                            'FileCategory' => 2,
                             'ClaimRequest' => $claim_result_id,
                             'DocumentType' => $document_type->ID ?? 1,
                             'ClaimDocumentType' => $code,
@@ -706,11 +809,16 @@ class ClaimsController extends Controller
             //confirm if it is a corporate scheme
             $scheme_id = $request->scheme_id;
             $PopFundAccessLevelId = $request->PopFundAccessLevelId;
+            $portal_user_id = $request->portal_user_id;
             $id = $request->id;
             $docs = array();
 
+            //check if the portal_user_id is a broker..
+            if (isset($portal_user_id)) {
+                $IsBroker = $this->britam_db->table('PortalUserLoginInfo')->where('Id', $portal_user_id)->first()->IsBroker;
+            }
 
-            if (isset($PopFundAccessLevelId)) {
+            if (isset($PopFundAccessLevelId) && (int)$PopFundAccessLevelId > 0) {
 
                 //fetch the PopFundAccessLevelId
                 $ClaimStatus = "014";
@@ -732,6 +840,42 @@ class ClaimsController extends Controller
                     ->where('c.SchemeID', $scheme_id)
                     ->where('c.ClaimStatus', $ClaimStatus)
                     ->get();
+            } else if (isset($IsBroker) && ($IsBroker == 1 || $IsBroker == true)) {
+                //fetch the claims that status is 016
+                $brokerId = $this->britam_db->table('PortalUserLoginInfo')->where('Id', $portal_user_id)->first()->Broker;
+
+                /*$results = $this->britam_db->table('ClaimRequest as c')
+                    ->join('polschemeinfo as t4', 't4.interm_ID', '=', $brokerId)
+                    ->join('glmembersinfo as g', 'g.MemberId', '=', 'c.Member')
+                    ->leftJoin('glifestatus as t3', 't3.status_code', '=', 'c.ClaimStatus')
+                    ->leftJoin('SchemeBenefitConfig as gcl', 'gcl.id', '=', 'c.SchemeBenefit')
+                    ->leftJoin('claims_types as cl', 'cl.claim_type', '=', 'c.ClaimType')
+                    ->select(
+                        'c.*',
+                        'g.Names',
+                        'gcl.Description as Claim_Type',
+                        't3.Description as Claim_Status'
+                    )
+                    ->where('c.ClaimStatus', "016")
+                    ->get();*/
+                    $results = $this->britam_db->table('ClaimRequest as c')
+                    ->join('polschemeinfo as t4', function($join) use ($brokerId) {
+                        $join->on('t4.interm_ID', '=', \DB::raw($brokerId)); // Use DB::raw to treat it as a value, not a column
+                    })
+                    ->join('glmembersinfo as g', 'g.MemberId', '=', 'c.Member')
+                    ->leftJoin('glifestatus as t3', 't3.status_code', '=', 'c.ClaimStatus')
+                    ->leftJoin('SchemeBenefitConfig as gcl', 'gcl.id', '=', 'c.SchemeBenefit')
+                    ->leftJoin('claims_types as cl', 'cl.claim_type', '=', 'c.ClaimType')
+                    ->distinct()
+                    ->select(
+                        'c.*',
+                        'g.Names',
+                        'gcl.Description as Claim_Type',
+                        't3.Description as Claim_Status'
+                    )
+                    ->where('c.ClaimStatus', "016")
+                    ->get();
+                
             } else {
                 if (isset($id)) {
                     //inner join to get the staff no
@@ -748,8 +892,12 @@ class ClaimsController extends Controller
                         'created_on' => date('Y-m-d H:i:s')
                     ]);*/
                     $results = $this->britam_db->table('ClaimRequest as c')
-                        ->select('c.*', 'c.SchemeBenefit as scheme_benefit_id',
-                        'c.EventDate as event_date', 'g.member_no')
+                        ->select(
+                            'c.*',
+                            'c.SchemeBenefit as scheme_benefit_id',
+                            'c.EventDate as event_date',
+                            'g.member_no'
+                        )
                         ->join('glmembersinfo as g', 'g.MemberId', '=', 'c.Member')
                         ->where('c.Id', $id)
                         ->get();
@@ -759,7 +907,7 @@ class ClaimsController extends Controller
                         ->get();
                 } else {
                     // use the above query to get the claim requests
-                    $results = $this->britam_db->table('ClaimRequest as c')
+                    /*$results = $this->britam_db->table('ClaimRequest as c')
                         ->select(
                             'gcl.Description',
                             'ed.Description as RequestStatus',
@@ -783,7 +931,44 @@ class ClaimsController extends Controller
                         ->leftJoin('ClaimStatusInfo as csi', 'ch.statuscode', '=', 'csi.id')
                         ->where('c.SchemeID', $scheme_id)
                         ->distinct()
-                        ->get();
+                        ->get();*/
+
+                        $results = $this->britam_db->table('ClaimRequest as c')
+                                ->select(
+                                    'gcl.Description',                // From SchemeBenefitConfig as gcl
+                                    'ed.Description as RequestStatus', // From EndorsementRequestStatus as ed
+                                    'g.Names',                         // From glmembersinfo as g
+                                    'c.EventDate',                     // From ClaimRequest as c
+                                    'c.NotificationDate',              // From ClaimRequest as c
+                                    'cs.Description as ClaimCause',    // From claimcausesinfo as cs
+                                    'p.schemeID',                      // From polschemeinfo as p
+                                    'p.policy_no',                     // From polschemeinfo as p
+                                    'gc.claim_no',                     // From glifeclaimsnotification as gc
+                                    $this->britam_db->raw("CASE WHEN csi.description IS NULL THEN 'PENDING' ELSE csi.description END AS ClaimStatus") // From ClaimStatusInfo as csi
+                                )
+                                ->join('EndorsementRequestStatus as ed', 'ed.Id', '=', 'c.Status')
+                                ->join('glmembersinfo as g', 'g.MemberId', '=', 'c.Member')
+                                ->leftJoin('SchemeBenefitConfig as gcl', 'gcl.id', '=', 'c.SchemeBenefit')
+                                ->leftJoin('claims_types as cl', 'cl.claim_type', '=', 'c.ClaimType')
+                                ->join('polschemeinfo as p', 'p.schemeID', '=', 'c.SchemeID')
+                                ->leftJoin('claimcausesinfo as cs', 'cs.claim_cause_code', '=', 'c.ClaimCause')
+                                ->leftJoin('glifeclaimsnotification as gc', 'gc.MemberIdKey', '=', 'g.MemberId')
+                                ->leftJoin('ClaimHistoryInfo as ch', 'gc.id', '=', 'ch.GlifeClaim_no')
+                                ->leftJoin('ClaimStatusInfo as csi', 'ch.statuscode', '=', 'csi.id')
+                                ->where('c.SchemeID', $scheme_id)
+                                ->whereRaw('ch.id = (
+                                    SELECT MAX(sub_ch.id)
+                                    FROM ClaimHistoryInfo as sub_ch
+                                    WHERE sub_ch.GlifeClaim_no = ch.GlifeClaim_no
+                                )')
+                                ->distinct()
+                                ->get();
+                        //$results = $this->getLastEntriesByClaimNo($results);
+                        $results = $results
+    ->keyBy('claim_no') // Keep only the last entry for each claim_no
+    ->values()          // Reindex the collection
+    ->all();    
+
                 }
             }
             // $results = $this->britam_db->table('ClaimRequest as c')
@@ -803,7 +988,7 @@ class ClaimsController extends Controller
                 return response()->json([
                     'success' => true,
                     'message' => 'Claim requests fetched successfully',
-                    'count' => count($results),
+                    //'count' => count($results),
                     'data' => $results,
                     'docs' => $docs
 
@@ -821,6 +1006,21 @@ class ClaimsController extends Controller
                 'message' => 'Error uploading claim request document' . $th->getMessage()
             ], 500);
         }
+    }
+
+    function getLastEntriesByClaimNo($data) {
+        // Convert objects to arrays and then clean
+        $data = array_map(function ($entry) {
+            return (array) $entry; // Convert object to array
+        }, $data);
+    
+        $cleanedData = [];
+        foreach ($data as $entry) {
+            $claim_no = $entry['claim_no']; // Now it's an array
+            $cleanedData[$claim_no] = $entry;
+        }
+    
+        return array_values($cleanedData);
     }
 
     public function uploadDocumentsToClaimRequest(Request $request)

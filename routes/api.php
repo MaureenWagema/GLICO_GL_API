@@ -88,6 +88,7 @@ Route::group(
         Route::get('/get-claim-reasons', [DefaultParamsController::class, 'getClaimReasons']);
         Route::get('/get-underwriting-doc-types', [DefaultParamsController::class, 'getUnderwritingDocs']);
         Route::get('/get-payment-modes', [DefaultParamsController::class, 'getPaymentModes']);
+        Route::get('/get-loan-types', [DefaultParamsController::class, 'getGlLoanTypes']);
 
         //client
         Route::get('/getGroupClients', [GroupClientController::class, 'getGroupClients']);
